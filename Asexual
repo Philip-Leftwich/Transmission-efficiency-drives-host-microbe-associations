@@ -1,0 +1,285 @@
+clear all; clc
+
+%--------------------------------------------------------------------------------------------------------
+% This MATLAB script is used to explore the equilibrium state reached within a mathematical model
+% based on sexual reproduction. In particular, this script defines a discretised parameter grid
+% and performs a numerical simulation of the relevant set of equations at each point in this grid.
+% Note that the parameters mu (migration rate) and tau (social transmission rate) are kept constant
+% across the entire discretised parameter grid and thus they should be chosen up front.
+%
+% Note: This script is for a scenario whereby one of two forms of assortative mating is present. In
+% this example females are given 'n' chances to sample from the male population in search of an
+% individuals of their preferred type. Here there are two possible preferences: (a) preference for
+% individuals of the same type as themselves and (b) preference for individuals that carry the microbe.
+% Here lines 88-91 and 213-216 must not be commented out for type (a) and lines 82-85 and 207-210 must
+% not be commented out for type (b). The lines associated with the non-preferred choice here should be
+% commented out (i.e. those lines should begin with a %).
+%
+% Note: The parameter value for social transmission (defined in line 35) will remain constant for the
+% entirety of this script.
+%
+% Note: To alter the migration rate considered within the second part of this script, the values in
+% lines 198-199 should be set as required. By way of an example, here a value of 0.02 represents a
+% migration rate of 2% in each generation.
+%--------------------------------------------------------------------------------------------------------
+
+% Define discretised parameter grid for fitness, vertical transmission and environmental acquisition
+% parameters. Also choose the parameters for the number of females sampled in attempting to find a 
+% mate of the preferred type.
+Mate_Choice = [1 2 3 4 5 6 7 8 9];
+Relative_Fitness = [0.50 0.75 1.00 1.33 2.00];
+Maternal_Transmission = 0:0.01:1;
+Environmental_Acquisition = 0:0.01:1;
+
+% Define consistent parameters (i.e. those that do not vary between simulations)
+tau = 0.00; % Social Transmission Rate
+
+%----------------------------- Numerical Simulations In Absence Of Migration ----------------------------
+for MateLoop = 1:9 % Scroll through each of the mate choice parameters
+
+    n = Mate_Choice(MateLoop); % Set mate choice parameter for simulation across the parameter grid.
+	
+    for FitLoop = 1:5 % Scroll through each of the relative fitness parameters
+	
+	    % Set fitness parameters for use throughout FitLoop
+        eps1_p1 = Relative_Fitness(FitLoop);
+        eps1_p2 = Relative_Fitness(FitLoop);
+		
+        for MaternalLoop = 1:201 % Scroll through each of the maternal transmission parameters
+		
+		    % Set vertical transmission parameters for use throughout VertLoop
+            alph1_p1 = Maternal_Transmission(MaternalLoop);
+            alph1_p2 = Maternal_Transmission(MaternalLoop);
+			
+            for EnvironmentLoop = 1:201 % Scroll through each of the environmental acquisition parameters
+			
+                [MateLoop FitLoop MaternalLoop EnvironmentLoop] % Display progress through the four parameter loops
+				
+				% Set environmental acquisition parameters for use throughout EnvLoop
+                beta1_p1 = Environmental_Acquisition(EnvironmentLoop);
+                beta1_p2 = 0;
+                
+                % Initial Conditions
+                M0_p1(1) = 0.495;
+				M1_p1(1) = 0.005;
+                F0_p1(1) = 0.495;
+				F1_p1(1) = 0.005;
+                M0_p2(1) = 0.50;
+				M1_p2(1) = 0.00;
+                F0_p2(1) = 0.50;
+				F1_p2(1) = 0.00;
+					
+                % Migration Parameters (mu(k)_(i)to(j) = Type k from Population i to Population j)
+                mu0_1to2 = 0.00; mu1_1to2 = 0.00;
+                mu0_2to1 = 0.00; mu1_2to1 = 0.00;
+
+                T = 0:1000; % Create array containing generation numbers for entire simulation
+                for i=2:max(T)+1 % Sequentially move through each generation of the numerical simulation
+				
+				    % Calculate assortative mating probabilities for use in the mating section below
+				
+                    % Assortative Mating Likelihoods - Prefer Carriers
+                    P00_p1 = M0_p1(i-1)*((1-M1_p1(i-1))^(n-1)); P10_p1 = 1 -((1-M1_p1(i-1))^n);
+                    P01_p1 = M0_p1(i-1)*((1-M1_p1(i-1))^(n-1)); P11_p1 = 1 -((1-M1_p1(i-1))^n);
+                    P00_p2 = M0_p2(i-1)*((1-M1_p2(i-1))^(n-1)); P10_p2 = 1 -((1-M1_p2(i-1))^n);
+                    P01_p2 = M0_p2(i-1)*((1-M1_p2(i-1))^(n-1)); P11_p2 = 1 -((1-M1_p2(i-1))^n);
+                    
+%                     % Assortative Mating Likelihoods - Prefer Same Type
+%                     P00_p1 = 1 -((1-M0_p1(i-1))^n); P10_p1 = M1_p1(i-1)*((1-M0_p1(i-1))^(n-1));
+%                     P01_p1 = M0_p1(i-1)*((1-M1_p1(i-1))^(n-1)); P11_p1 = 1 -((1-M1_p1(i-1))^n);
+%                     P00_p2 = 1 -((1-M0_p2(i-1))^n); P10_p2 = M1_p2(i-1)*((1-M0_p2(i-1))^(n-1));
+%                     P01_p2 = M0_p2(i-1)*((1-M1_p2(i-1))^(n-1)); P11_p2 = 1 -((1-M1_p2(i-1))^n);
+                    
+                    % Calculate proportional frequencies for each type of individual (applying mating, fitness,
+				    % maternal transmission, environmental acquisition and assortative mating)
+                    M0p1 = 0.5*(((1-beta1_p1)*F0_p1(i-1)*(P00_p1+P10_p1)) + ((1-alph1_p1)*(1-beta1_p1)*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    M1p1 = 0.5*eps1_p1*((beta1_p1*F0_p1(i-1)*(P00_p1+P10_p1)) + (alph1_p1*F1_p1(i-1)*(P01_p1+P11_p1)) + ((1-alph1_p1)*beta1_p1*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    F0p1 = 0.5*(((1-beta1_p1)*F0_p1(i-1)*(P00_p1+P10_p1)) + ((1-alph1_p1)*(1-beta1_p1)*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    F1p1 = 0.5*eps1_p1*((beta1_p1*F0_p1(i-1)*(P00_p1+P10_p1)) + (alph1_p1*F1_p1(i-1)*(P01_p1+P11_p1)) + ((1-alph1_p1)*beta1_p1*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    M0p2 = 0.5*(((1-beta1_p2)*F0_p2(i-1)*(P00_p2+P10_p2)) + ((1-alph1_p2)*(1-beta1_p2)*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    M1p2 = 0.5*eps1_p2*((beta1_p2*F0_p2(i-1)*(P00_p2+P10_p2)) + (alph1_p2*F1_p2(i-1)*(P01_p2+P11_p2)) + ((1-alph1_p2)*beta1_p2*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    F0p2 = 0.5*(((1-beta1_p2)*F0_p2(i-1)*(P00_p2+P10_p2)) + ((1-alph1_p2)*(1-beta1_p2)*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    F1p2 = 0.5*eps1_p2*((beta1_p2*F0_p2(i-1)*(P00_p2+P10_p2)) + (alph1_p2*F1_p2(i-1)*(P01_p2+P11_p2)) + ((1-alph1_p2)*beta1_p2*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    
+					% Calculate normalisation parameters (sum of proportional frequencies)
+                    Ome_p1 = M0p1+M1p1+F0p1+F1p1;
+                    Ome_p2 = M0p2+M1p2+F0p2+F1p2;
+					
+                    % Normalise proportional frequencies to fill the range from zero to one in each population
+                    M0p1 = M0p1/Ome_p1; M1p1 = M1p1/Ome_p1;
+                    F0p1 = F0p1/Ome_p1; F1p1 = F1p1/Ome_p1;
+                    M0p2 = M0p2/Ome_p2; M1p2 = M1p2/Ome_p2;
+                    F0p2 = F0p2/Ome_p2; F1p2 = F1p2/Ome_p2;
+                    
+                    % Social Transmission
+                    t1m = (tau*(M1p1+F1p1))*M0p1; t1f = (tau*(M1p1+F1p1))*F0p1; % Calculate amount of acquisition via social transmission in population 1
+                    M0p1 = M0p1 - t1m; % Remove males acquiring via social transmission from non-carriers
+					M1p1 = M1p1 + t1m; % Add males acquiring via social transmission to carrier population
+                    F0p1 = F0p1 - t1f; % Remove females acquiring via social transmission from non-carriers
+					F1p1 = F1p1 + t1f; % Add females acquiring via social transmission to carrier population
+                    t2m = (tau*(M1p2+F1p2))*M0p2; t2f = (tau*(M1p2+F1p2))*F0p2; % Calculate amount of acquisition via social transmission in population 2
+                    M0p2 = M0p2 - t2m; % Remove males acquiring via social transmission from non-carriers
+					M1p2 = M1p2 + t2m; % Add males acquiring via social transmission to carrier population
+                    F0p2 = F0p2 - t2m; % Remove females acquiring via social transmission from non-carriers
+					F1p2 = F1p2 + t2m; % Add females acquiring via social transmission to carrier population
+                    
+                    % Migration Calculations - move required individuals between populations
+                    M0_p1(i) = M0p1 - ((mu0_1to2)*M0p1) + (mu0_2to1*M0p2);
+                    M1_p1(i) = M1p1 - ((mu1_1to2)*M1p1) + (mu1_2to1*M1p2);
+                    F0_p1(i) = F0p1 - ((mu0_1to2)*F0p1) + (mu0_2to1*F0p2);
+                    F1_p1(i) = F1p1 - ((mu1_1to2)*F1p1) + (mu1_2to1*F1p2);
+                    M0_p2(i) = M0p2 - ((mu0_2to1)*M0p2) + (mu0_1to2*M0p1);
+                    M1_p2(i) = M1p2 - ((mu1_2to1)*M1p2) + (mu1_1to2*M1p1);
+                    F0_p2(i) = F0p2 - ((mu0_2to1)*F0p2) + (mu0_1to2*F0p1);
+                    F1_p2(i) = F1p2 - ((mu1_2to1)*F1p2) + (mu1_1to2*F1p1);
+					
+                    % Re-normalisation parameters following migration calculations
+                    Ome_p1 = M0_p1(i) + M1_p1(i) + F0_p1(i) + F1_p1(i);
+                    Ome_p2 = M0_p2(i) + M1_p2(i) + F0_p2(i) + F1_p2(i);
+					
+                    % Implement re-normalisation
+                    M0_p1(i) = M0_p1(i)/Ome_p1; M1_p1(i) = M1_p1(i)/Ome_p1;
+                    F0_p1(i) = F0_p1(i)/Ome_p1; F1_p1(i) = F1_p1(i)/Ome_p1;
+                    M0_p2(i) = M0_p2(i)/Ome_p2; M1_p2(i) = M1_p2(i)/Ome_p2;
+                    F0_p2(i) = F0_p2(i)/Ome_p2; F1_p2(i) = F1_p2(i)/Ome_p2;
+                end
+				
+				% Store the final state of the numerical simulation ready for plotting later
+                M0p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M0_p1(end);
+                M1p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M1_p1(end);
+                F0p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F0_p1(end);
+                F1p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F1_p1(end);
+                M0p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M0_p2(end);
+                M1p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M1_p2(end);
+                F0p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F0_p2(end);
+                F1p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F1_p2(end);
+            end
+        end
+    end
+end
+save('Data_NoMig');
+
+%--------------------------------- Numerical Simulations With Migration ---------------------------------
+for MateLoop = 1:9 % Scroll through each of the mate choice parameters
+
+    n = Mate_Choice(MateLoop); % Set mate choice parameter for simulation across the parameter grid.
+	
+    for FitLoop = 1:5 % Scroll through each of the relative fitness parameters
+	
+	    % Set fitness parameters for use throughout FitLoop
+        eps1_p1 = Relative_Fitness(FitLoop);
+        eps1_p2 = Relative_Fitness(FitLoop);
+		
+        for MaternalLoop = 1:201 % Scroll through each of the maternal transmission parameters
+		
+		    % Set vertical transmission parameters for use throughout VertLoop
+            alph1_p1 = Maternal_Transmission(MaternalLoop);
+            alph1_p2 = Maternal_Transmission(MaternalLoop);
+			
+            for EnvironmentLoop = 1:201 % Scroll through each of the environmental acquisition parameters
+			
+                [MateLoop FitLoop MaternalLoop EnvironmentLoop] % Display progress through the four parameter loops
+				
+				% Set environmental acquisition parameters for use throughout EnvLoop
+                beta1_p1 = Environmental_Acquisition(EnvironmentLoop);
+                beta1_p2 = 0;
+                
+                % Initial Conditions
+                M0_p1(1) = 0.495;
+				M1_p1(1) = 0.005;
+                F0_p1(1) = 0.495;
+				F1_p1(1) = 0.005;
+                M0_p2(1) = 0.50;
+				M1_p2(1) = 0.00;
+                F0_p2(1) = 0.50;
+				F1_p2(1) = 0.00;
+				
+                % Migration Parameters (mu(k)_(i)to(j) = Type k from Population i to Population j)
+                mu0_1to2 = 0.02; mu1_1to2 = 0.02;
+                mu0_2to1 = 0.02; mu1_2to1 = 0.02;
+
+                T = 0:1000; % Create array containing generation numbers for entire simulation
+                for i=2:max(T)+1 % Sequentially move through each generation of the numerical simulation
+				
+				    % Calculate assortative mating probabilities for use in the mating section below
+				
+                    % Assortative Mating Likelihoods - Prefer Carriers
+                    P00_p1 = M0_p1(i-1)*((1-M1_p1(i-1))^(n-1)); P10_p1 = 1 -((1-M1_p1(i-1))^n);
+                    P01_p1 = M0_p1(i-1)*((1-M1_p1(i-1))^(n-1)); P11_p1 = 1 -((1-M1_p1(i-1))^n);
+                    P00_p2 = M0_p2(i-1)*((1-M1_p2(i-1))^(n-1)); P10_p2 = 1 -((1-M1_p2(i-1))^n);
+                    P01_p2 = M0_p2(i-1)*((1-M1_p2(i-1))^(n-1)); P11_p2 = 1 -((1-M1_p2(i-1))^n);
+                    
+%                     % Assortative Mating Likelihoods - Prefer Same Type
+%                     P00_p1 = 1 -((1-M0_p1(i-1))^n); P10_p1 = M1_p1(i-1)*((1-M0_p1(i-1))^(n-1));
+%                     P01_p1 = M0_p1(i-1)*((1-M1_p1(i-1))^(n-1)); P11_p1 = 1 -((1-M1_p1(i-1))^n);
+%                     P00_p2 = 1 -((1-M0_p2(i-1))^n); P10_p2 = M1_p2(i-1)*((1-M0_p2(i-1))^(n-1));
+%                     P01_p2 = M0_p2(i-1)*((1-M1_p2(i-1))^(n-1)); P11_p2 = 1 -((1-M1_p2(i-1))^n);
+                    
+                    % Calculate proportional frequencies for each type of individual (applying mating, fitness,
+				    % maternal transmission, environmental acquisition and assortative mating)
+                    M0p1 = 0.5*(((1-beta1_p1)*F0_p1(i-1)*(P00_p1+P10_p1)) + ((1-alph1_p1)*(1-beta1_p1)*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    M1p1 = 0.5*eps1_p1*((beta1_p1*F0_p1(i-1)*(P00_p1+P10_p1)) + (alph1_p1*F1_p1(i-1)*(P01_p1+P11_p1)) + ((1-alph1_p1)*beta1_p1*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    F0p1 = 0.5*(((1-beta1_p1)*F0_p1(i-1)*(P00_p1+P10_p1)) + ((1-alph1_p1)*(1-beta1_p1)*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    F1p1 = 0.5*eps1_p1*((beta1_p1*F0_p1(i-1)*(P00_p1+P10_p1)) + (alph1_p1*F1_p1(i-1)*(P01_p1+P11_p1)) + ((1-alph1_p1)*beta1_p1*F1_p1(i-1)*(P01_p1+P11_p1)));
+                    M0p2 = 0.5*(((1-beta1_p2)*F0_p2(i-1)*(P00_p2+P10_p2)) + ((1-alph1_p2)*(1-beta1_p2)*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    M1p2 = 0.5*eps1_p2*((beta1_p2*F0_p2(i-1)*(P00_p2+P10_p2)) + (alph1_p2*F1_p2(i-1)*(P01_p2+P11_p2)) + ((1-alph1_p2)*beta1_p2*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    F0p2 = 0.5*(((1-beta1_p2)*F0_p2(i-1)*(P00_p2+P10_p2)) + ((1-alph1_p2)*(1-beta1_p2)*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    F1p2 = 0.5*eps1_p2*((beta1_p2*F0_p2(i-1)*(P00_p2+P10_p2)) + (alph1_p2*F1_p2(i-1)*(P01_p2+P11_p2)) + ((1-alph1_p2)*beta1_p2*F1_p2(i-1)*(P01_p2+P11_p2)));
+                    
+					% Calculate normalisation parameters (sum of proportional frequencies)
+                    Ome_p1 = M0p1+M1p1+F0p1+F1p1;
+                    Ome_p2 = M0p2+M1p2+F0p2+F1p2;
+                    
+					% Normalise proportional frequencies to fill the range from zero to one in each population
+                    M0p1 = M0p1/Ome_p1; M1p1 = M1p1/Ome_p1;
+                    F0p1 = F0p1/Ome_p1; F1p1 = F1p1/Ome_p1;
+                    M0p2 = M0p2/Ome_p2; M1p2 = M1p2/Ome_p2;
+                    F0p2 = F0p2/Ome_p2; F1p2 = F1p2/Ome_p2;
+                    
+                    % Social Transmission
+                    t1m = (tau*(M1p1+F1p1))*M0p1; t1f = (tau*(M1p1+F1p1))*F0p1; % Calculate amount of acquisition via social transmission in population 1
+                    M0p1 = M0p1 - t1m; % Remove males acquiring via social transmission from non-carriers
+					M1p1 = M1p1 + t1m; % Add males acquiring via social transmission to carrier population
+                    F0p1 = F0p1 - t1f; % Remove females acquiring via social transmission from non-carriers
+					F1p1 = F1p1 + t1f; % Add females acquiring via social transmission to carrier population
+                    t2m = (tau*(M1p2+F1p2))*M0p2; t2f = (tau*(M1p2+F1p2))*F0p2; % Calculate amount of acquisition via social transmission in population 2
+                    M0p2 = M0p2 - t2m; % Remove males acquiring via social transmission from non-carriers
+					M1p2 = M1p2 + t2m; % Add males acquiring via social transmission to carrier population
+                    F0p2 = F0p2 - t2m; % Remove females acquiring via social transmission from non-carriers
+					F1p2 = F1p2 + t2m; % Add females acquiring via social transmission to carrier population
+                    
+                    % Migration Calculations - move required individuals between populations
+                    M0_p1(i) = M0p1 - ((mu0_1to2)*M0p1) + (mu0_2to1*M0p2);
+                    M1_p1(i) = M1p1 - ((mu1_1to2)*M1p1) + (mu1_2to1*M1p2);
+                    F0_p1(i) = F0p1 - ((mu0_1to2)*F0p1) + (mu0_2to1*F0p2);
+                    F1_p1(i) = F1p1 - ((mu1_1to2)*F1p1) + (mu1_2to1*F1p2);
+                    M0_p2(i) = M0p2 - ((mu0_2to1)*M0p2) + (mu0_1to2*M0p1);
+                    M1_p2(i) = M1p2 - ((mu1_2to1)*M1p2) + (mu1_1to2*M1p1);
+                    F0_p2(i) = F0p2 - ((mu0_2to1)*F0p2) + (mu0_1to2*F0p1);
+                    F1_p2(i) = F1p2 - ((mu1_2to1)*F1p2) + (mu1_1to2*F1p1);
+					
+                    % Re-normalisation parameters following migration calculations
+                    Ome_p1 = M0_p1(i) + M1_p1(i) + F0_p1(i) + F1_p1(i);
+                    Ome_p2 = M0_p2(i) + M1_p2(i) + F0_p2(i) + F1_p2(i);
+                    
+					% Implement re-normalisation
+                    M0_p1(i) = M0_p1(i)/Ome_p1; M1_p1(i) = M1_p1(i)/Ome_p1;
+                    F0_p1(i) = F0_p1(i)/Ome_p1; F1_p1(i) = F1_p1(i)/Ome_p1;
+                    M0_p2(i) = M0_p2(i)/Ome_p2; M1_p2(i) = M1_p2(i)/Ome_p2;
+                    F0_p2(i) = F0_p2(i)/Ome_p2; F1_p2(i) = F1_p2(i)/Ome_p2;
+                end
+				
+				% Store the final state of the numerical simulation ready for plotting later
+                M0p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M0_p1(end);
+                M1p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M1_p1(end);
+                F0p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F0_p1(end);
+                F1p1Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F1_p1(end);
+                M0p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M0_p2(end);
+                M1p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = M1_p2(end);
+                F0p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F0_p2(end);
+                F1p2Eqms(MateLoop,FitLoop,MaternalLoop,EnvironmentLoop) = F1_p2(end);
+            end
+        end
+    end
+end
+save('Data_WithMig');
